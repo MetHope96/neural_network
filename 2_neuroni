@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+float TRAIN_DATA[][3] = {
+    {0, 0, 0},
+    {0, 1, 1},
+    {1, 0, 1},
+    {1, 1, 0}
+};
+#define TRAIN_COUNT (sizeof(TRAIN_DATA) / sizeof(TRAIN_DATA[0]))
+
+float sigmoid(float x) {
+    return 1.f / (1.f + expf(-x));
+}
+
+float rand_float(void) {
+    return (float)rand() / (float)RAND_MAX;
+}
+
+// Modello a 2 neuroni
+float model_cost(float w1[2], float w2[2], float b[2], float v[2], float vb) {
+    float cost = 0.0f;
+    for (int i = 0; i < TRAIN_COUNT; i++) {
+        float x1 = TRAIN_DATA[i][0];
+        float x2 = TRAIN_DATA[i][1];
+        float y_expected = TRAIN_DATA[i][2];
+
+        // Layer nascosto (2 neuroni)
+        float z1 = sigmoid(w1[0] * x1 + w2[0] * x2 + b[0]);
+        float z2 = sigmoid(w1[1] * x1 + w2[1] * x2 + b[1]);
+
+        // Output layer
+        float y_computed = sigmoid(v[0] * z1 + v[1] * z2 + vb);
+
+        float d = y_computed - y_expected;
+        cost += d * d;
+    }
+    cost /= TRAIN_COUNT;
+    return cost;
+}
+
+int main(void) {
+    srand(1337);
+
+    // Inizializzazione pesi e bias
+    float w1[2] = {rand_float() * 5.f, rand_float() * 5.f};
+    float w2[2] = {rand_float() * 10.f, rand_float() * 10.f};
+    float b[2] = {rand_float() * 5.f, rand_float() * 5.f};
+    float v[2] = {rand_float() * 5.f, rand_float() * 5.f};
+    float vb = rand_float() * 5.f;
+
+    // Parametri di training
+    float learning_rate = 2;
+    float eps = 1e-3;
+    float epochs = 100000;
+
+    // Training del modello
+    for (size_t i = 0; i < epochs; i++) {
+        float c = model_cost(w1, w2, b, v, vb);
+        float dw1[2], dw2[2], db[2], dv[2], dvb;
+
+        for (int j = 0; j < 2; j++) {
+            dw1[j] = (model_cost((float[2]){w1[0] + eps * (j == 0), w1[1] + eps * (j == 1)}, w2, b, v, vb) - c) / eps;
+            dw2[j] = (model_cost(w1, (float[2]){w2[0] + eps * (j == 0), w2[1] + eps * (j == 1)}, b, v, vb) - c) / eps;
+            db[j] = (model_cost(w1, w2, (float[2]){b[0] + eps * (j == 0), b[1] + eps * (j == 1)}, v, vb) - c) / eps;
+            dv[j] = (model_cost(w1, w2, b, (float[2]){v[0] + eps * (j == 0), v[1] + eps * (j == 1)}, vb) - c) / eps;
+        }
+
+        dvb = (model_cost(w1, w2, b, v, vb + eps) - c) / eps;
+
+        for (int j = 0; j < 2; j++) {
+            w1[j] -= learning_rate * dw1[j];
+            w2[j] -= learning_rate * dw2[j];
+            b[j] -= learning_rate * db[j];
+            v[j] -= learning_rate * dv[j];
+        }
+        vb -= learning_rate * dvb;
+    }
+
+    // Stampa dei risultati dopo il training
+    for (int i = 0; i < TRAIN_COUNT; i++) {
+        float x1 = TRAIN_DATA[i][0];
+        float x2 = TRAIN_DATA[i][1];
+        float y_expected = TRAIN_DATA[i][2];
+
+        // Layer nascosto (2 neuroni)
+        float z1 = sigmoid(w1[0] * x1 + w2[0] * x2 + b[0]);
+        float z2 = sigmoid(w1[1] * x1 + w2[1] * x2 + b[1]);
+
+        // Output layer
+        float y_computed = sigmoid(v[0] * z1 + v[1] * z2 + vb);
+
+        printf("%f ^ %f = %f | expected %f\n", x1, x2, y_computed, y_expected);
+    }
+
+    return 0;
+}
